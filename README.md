@@ -20,11 +20,7 @@ your own orders.
 You need Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) (`pip install uv`).
 
 ```powershell
-python -m uv sync --extra train
-```
-
-```powershell
-python -m uv run python -m delivery_eta train
+python -m uv sync
 ```
 
 ```powershell
@@ -33,7 +29,7 @@ python -m uv run python -m delivery_eta serve
 
 Then open <http://localhost:8000>. The API documentation is at <http://localhost:8000/docs>.
 
-Or with Docker, which trains the model while building:
+Or with Docker:
 
 ```powershell
 docker build -t delivery-eta .
@@ -74,22 +70,25 @@ Settings are environment variables, listed in [.env.example](.env.example). To p
 
 ## Commands
 
-Each is run as `python -m uv run python -m delivery_eta <command>`.
+Each is run as `python -m uv run python -m delivery_eta <command>`. All but `serve` need
+`python -m uv sync --all-extras` first.
 
 | Command | What it does |
 |---|---|
-| `train` | Trains, tests on the newest days, and saves the model only if it passes the quality gate. Add `--report reports/metrics.json` to update the published numbers. |
-| `predict IN.csv OUT.csv` | Predicts every order in a raw CSV (needs `--extra train`). |
-| `compare` | Compares 12 models on the same data (needs `--extra experiments`). |
-| `tune` | Searches for better settings (needs `--extra experiments`). |
+| `train` | Trains, tests on the newest days, and saves the model to `model/` only if it passes the quality gate. Add `--report reports/metrics.json` to update the published numbers. |
+| `predict IN.csv OUT.csv` | Predicts every order in a raw CSV. |
+| `compare` | Compares 12 models on the same data. |
+| `tune` | Searches for better settings. |
 | `serve` | Runs the API and the page. |
 
 ## Layout
 
 ```
+app.py                 Where hosts such as Vercel find the app
 configs/train.json     Model settings and the quality gate
 data/raw/              train.csv (with delivery times) and test.csv (without)
 docs/                  Model card and deployment guide
+model/                 The released model
 notebooks/             Exploring the data
 reports/               Published accuracy, and the model comparison
 scripts/smoke_test.py  Checks that a running copy really works
@@ -98,6 +97,7 @@ src/delivery_eta/
   features.py          Turns orders into model inputs (shared by training and the API)
   training.py          Training, evaluation, quality gate
   experiments.py       Model comparison and tuning
+  forest.py            Runs the trained trees without LightGBM
   artifact.py          Saves and loads the model
   predictor.py         Estimates, ranges, warnings
   api/                 The web service and page
@@ -122,4 +122,4 @@ python -m uv run python -m ruff check .
 python -m uv run python -m pyright
 ```
 
-CI runs all of these, trains the model, and builds and tests the Docker image.
+CI runs all of these, retrains the model, and tries the service both as Vercel runs it and in Docker.

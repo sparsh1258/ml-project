@@ -12,9 +12,6 @@ dist/
 htmlcov/
 .ipynb_checkpoints/
 
-# Built by `delivery-eta train` (rebuilt from code + data, never committed)
-artifacts/
-
 # Local settings and secrets
 .env
 .env.*

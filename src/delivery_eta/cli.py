@@ -11,7 +11,7 @@ from typing import Any
 
 DATA = Path("data/raw/train.csv")
 CONFIG = Path("configs/train.json")
-MODEL = Path("artifacts/model")
+MODEL = Path("model")
 REPORTS = Path("reports")
 
 

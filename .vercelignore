@@ -1,0 +1,11 @@
+# Not needed to run the service, so not put in Vercel's bundle.
+# Keep README.md: installing the package reads it.
+/.github
+/configs
+/data
+/docs
+/notebooks
+/reports
+/scripts
+/tests
+/Dockerfile

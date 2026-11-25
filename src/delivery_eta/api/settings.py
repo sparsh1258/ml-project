@@ -12,7 +12,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ETA_", extra="ignore")
 
-    model_dir: Path = Path("artifacts/model")
+    model_dir: Path = Path("model")
     # When set, predictions and metrics need one of these in the X-API-Key header.
     api_keys: Annotated[frozenset[str], NoDecode] = frozenset()
     # Other websites allowed to call the API from a browser. Empty: only our own page.

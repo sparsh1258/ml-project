@@ -9,7 +9,7 @@ import numpy as np
 from delivery_eta import artifact
 from delivery_eta.data import load_orders
 from delivery_eta.features import encode
-from delivery_eta.training import predict
+from delivery_eta.forest import with_range
 
 
 def predict_file(source: Path, target: Path, model_folder: Path) -> tuple[int, int]:
@@ -25,8 +25,8 @@ def predict_file(source: Path, target: Path, model_folder: Path) -> tuple[int, i
         out[name] = np.nan
     if usable.any():
         adjustment = float(model.info["range_adjustment"])
-        point, low, high = predict(model.boosters, encode(orders[usable]), adjustment)
-        out.loc[usable, ["minutes", "low", "high"]] = np.column_stack([point, low, high]).round(1)
+        answers = with_range(*model.forest.predict(encode(orders[usable])), adjustment)
+        out.loc[usable, ["minutes", "low", "high"]] = np.column_stack(answers).round(1)
     out["model_version"] = model.version
     target.parent.mkdir(parents=True, exist_ok=True)
     columns = ["order_id", "minutes", "low", "high", "problem", "model_version"]
