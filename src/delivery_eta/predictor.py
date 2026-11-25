@@ -7,10 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-import numpy as np
-
 from delivery_eta import artifact
 from delivery_eta.features import FEATURES, OPTIONAL, Floats, encode
+from delivery_eta.forest import with_range
 
 
 class Order(TypedDict):
@@ -64,22 +63,13 @@ class Predictor:
     def load(cls, folder: Path) -> Predictor:
         return cls(artifact.load(folder))
 
-    def _run(self, part: str, X: Floats) -> Floats:
-        # One thread each: requests are small, and the server handles several at once.
-        return np.asarray(self.model.boosters[part].predict(X, num_threads=1))
-
     def predict(self, orders: Sequence[Order], *, explain: bool = False) -> list[Estimate]:
         if not orders:
             return []
         X = encode({name: [order[name] for order in orders] for name in FEATURES})  # type: ignore[literal-required]
-        point = self._run("point", X)
-        low = np.maximum(np.minimum(self._run("low", X) - self._adjustment, point), 1.0)
-        high = np.maximum(self._run("high", X) + self._adjustment, point)
-        parts: Floats | None = None
-        if explain:
-            parts = np.asarray(
-                self.model.boosters["point"].predict(X, pred_contrib=True, num_threads=1)
-            )
+        forest = self.model.forest
+        point, low, high = with_range(*forest.predict(X), self._adjustment)
+        moved = forest.explain(X) if explain else None
         return [
             Estimate(
                 minutes=round(float(point[i]), 1),
@@ -87,7 +77,7 @@ class Predictor:
                 high=round(float(high[i]), 1),
                 missing=[name for name in OPTIONAL if order[name] is None],  # type: ignore[literal-required]
                 warnings=self._warnings(order),
-                factors=None if parts is None else self._factors(parts[i]),
+                factors=None if moved is None else self._factors(moved[i]),
             )
             for i, order in enumerate(orders)
         ]
@@ -117,8 +107,6 @@ class Predictor:
         return warnings
 
     @staticmethod
-    def _factors(contributions: Floats) -> list[Factor]:
-        # The last column is the starting point (the average), not an input.
-        pairs = zip(FEATURES, contributions[:-1], strict=True)
-        ranked = sorted(pairs, key=lambda pair: -abs(pair[1]))
+    def _factors(moved: Floats) -> list[Factor]:
+        ranked = sorted(zip(FEATURES, moved, strict=True), key=lambda pair: -abs(pair[1]))
         return [Factor(name, round(float(value), 1) + 0.0) for name, value in ranked]

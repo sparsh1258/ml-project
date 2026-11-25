@@ -151,7 +151,7 @@ def copied_model(model_dir: Path, tmp_path: Path) -> Path:
 
 
 def test_a_changed_model_file_is_refused(copied_model: Path) -> None:
-    path = copied_model / "point.txt"
+    path = copied_model / "forest.npz"
     path.write_bytes(path.read_bytes() + b"\n")
     with pytest.raises(artifact.ArtifactError, match="fingerprint"):
         artifact.load(copied_model)

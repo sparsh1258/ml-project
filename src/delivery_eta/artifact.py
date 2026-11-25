@@ -1,24 +1,26 @@
-"""The saved model: three LightGBM text files and a JSON description.
+"""The saved model: the trees as plain numbers, and a JSON description.
 
-Nothing here is pickled, so loading a model can't run code. Every file's fingerprint is
-checked on load, and a model built for different inputs is refused.
+Nothing here is pickled, so loading a model can't run code. The file's fingerprint is checked
+on load, and a model built for different inputs is refused.
 """
 
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import lightgbm as lgb
+import numpy as np
 
 from delivery_eta.features import CATEGORIES, FEATURES
+from delivery_eta.forest import Forest
 
-FORMAT = 1
-PARTS = ("point", "low", "high")
+FORMAT = 2
+TREES = "forest.npz"
 
 
 class ArtifactError(RuntimeError):
@@ -27,7 +29,7 @@ class ArtifactError(RuntimeError):
 
 @dataclass(frozen=True)
 class Model:
-    boosters: dict[str, lgb.Booster]
+    forest: Forest
     info: dict[str, Any]
 
     @property
@@ -35,30 +37,28 @@ class Model:
         return str(self.info["version"])
 
 
-def _sha256(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
-
-
-def save(boosters: dict[str, lgb.Booster], info: dict[str, Any], folder: Path) -> dict[str, Any]:
+def save(forest: Forest, info: dict[str, Any], folder: Path) -> dict[str, Any]:
     """Write the model to `folder`, replacing what was there only once everything is written."""
-    texts = {part: boosters[part].model_to_string() for part in PARTS}
-    files = {f"{part}.txt": _sha256(text) for part, text in texts.items()}
-    identity = json.dumps([files, info["range_adjustment"]], sort_keys=True)
+    buffer = io.BytesIO()
+    np.savez_compressed(buffer, **forest.arrays())  # type: ignore[arg-type]
+    data = buffer.getvalue()
+    identity = f"{forest.fingerprint()} {info['range_adjustment']!r}"
     info = {
         "format": FORMAT,
-        "version": _sha256(identity)[:12],
+        "version": hashlib.sha256(identity.encode()).hexdigest()[:12],
         "features": list(FEATURES),
         "categories": {k: list(v) for k, v in CATEGORIES.items()},
-        "files": files,
+        "files": {TREES: hashlib.sha256(data).hexdigest()},
         **info,
     }
     folder = Path(folder)
     staging = folder.with_name(folder.name + ".new")
     shutil.rmtree(staging, ignore_errors=True)
     staging.mkdir(parents=True)
-    for part, text in texts.items():
-        (staging / f"{part}.txt").write_bytes(text.encode())
-    (staging / "model.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+    (staging / TREES).write_bytes(data)
+    (staging / "model.json").write_text(
+        json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
     shutil.rmtree(folder, ignore_errors=True)
     staging.rename(folder)
     return info
@@ -68,10 +68,10 @@ def load(folder: Path) -> Model:
     folder = Path(folder)
     try:
         info = json.loads((folder / "model.json").read_text(encoding="utf-8"))
-        texts = {part: (folder / f"{part}.txt").read_bytes().decode() for part in PARTS}
+        data = (folder / TREES).read_bytes()
     except FileNotFoundError as e:
         raise ArtifactError(
-            f"No trained model in {folder}. Build one with: delivery-eta train"
+            f"No trained model in {folder.absolute()}. Build one with: delivery-eta train"
         ) from e
     except ValueError as e:
         raise ArtifactError(f"The model in {folder} can't be read: {e}") from e
@@ -81,7 +81,7 @@ def load(folder: Path) -> Model:
         k: list(v) for k, v in CATEGORIES.items()
     }:
         raise ArtifactError("This model was built for different inputs; retrain it.")
-    for part, text in texts.items():
-        if _sha256(text) != info["files"].get(f"{part}.txt"):
-            raise ArtifactError(f"{part}.txt doesn't match its recorded fingerprint.")
-    return Model({part: lgb.Booster(model_str=text) for part, text in texts.items()}, info)
+    if hashlib.sha256(data).hexdigest() != info["files"].get(TREES):
+        raise ArtifactError(f"{TREES} doesn't match its recorded fingerprint.")
+    with np.load(io.BytesIO(data), allow_pickle=False) as arrays:
+        return Model(Forest(**{name: arrays[name] for name in arrays.files}), info)

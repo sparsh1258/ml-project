@@ -30,6 +30,7 @@ from delivery_eta.features import (
     Floats,
     encode,
 )
+from delivery_eta.forest import PARTS, Forest, with_range
 from delivery_eta.metrics import error_metrics, range_metrics
 
 Boosters = dict[str, lgb.Booster]
@@ -71,9 +72,7 @@ def with_missing_inputs(X: Floats, y: Floats, cfg: TrainConfig) -> tuple[Floats,
     return np.vstack(Xs), np.concatenate(ys)
 
 
-def fit(
-    X: Floats, y: Floats, cfg: TrainConfig, parts: tuple[str, ...] = artifact.PARTS
-) -> Boosters:
+def fit(X: Floats, y: Floats, cfg: TrainConfig, parts: tuple[str, ...] = PARTS) -> Boosters:
     """The estimate (`point`) and the two ends of its likely range (`low`, `high`)."""
     tail = (1 - cfg.coverage) / 2
     objectives: dict[str, dict[str, Any]] = {
@@ -99,11 +98,21 @@ def fit(
 
 
 def predict(boosters: Boosters, X: Floats, adjustment: float) -> tuple[Floats, Floats, Floats]:
-    """Estimate, low and high. The range always contains the estimate."""
-    point = np.asarray(boosters["point"].predict(X))
-    low = np.minimum(np.asarray(boosters["low"].predict(X)) - adjustment, point)
-    high = np.maximum(np.asarray(boosters["high"].predict(X)) + adjustment, point)
-    return point, np.maximum(low, 1.0), high
+    """Estimate, low and high."""
+    point, low, high = (np.asarray(boosters[part].predict(X)) for part in PARTS)
+    return with_range(point, low, high, adjustment)
+
+
+def to_forest(boosters: Boosters, X: Floats) -> Forest:
+    """The trees as the service runs them, after checking they answer exactly as LightGBM does."""
+    forest = Forest.from_boosters(boosters)
+    sample = X[:: max(1, len(X) // 2000)]
+    rows = np.vstack([sample, *(blank(sample[::10], n) for n in MISSING_TOGETHER.values())])
+    for part, ours in zip(PARTS, forest.predict(rows), strict=True):
+        gap = float(np.abs(ours - np.asarray(boosters[part].predict(rows))).max())
+        if gap > 1e-9:
+            raise RuntimeError(f"The {part} trees differ from LightGBM by {gap:g} minutes.")
+    return forest
 
 
 def time_folds(dates: pd.Series, folds: int, days: int) -> Iterator[tuple[np.ndarray, np.ndarray]]:
@@ -273,9 +282,10 @@ def train(data: Path, cfg: TrainConfig, folder: Path) -> tuple[dict[str, Any], l
     if failures:
         return report, failures
 
-    final = fit(encode(orders), orders[TARGET].to_numpy(dtype=float), cfg)
+    X = encode(orders)
+    final = fit(X, orders[TARGET].to_numpy(dtype=float), cfg)
     info = artifact.save(
-        final,
+        to_forest(final, X),
         {
             "range_adjustment": adjustment,
             "coverage": cfg.coverage,

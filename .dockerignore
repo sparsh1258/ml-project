@@ -4,7 +4,5 @@
 !uv.lock
 !README.md
 !src
-!configs
-!data
-data/raw/test.csv
+!model
 **/__pycache__

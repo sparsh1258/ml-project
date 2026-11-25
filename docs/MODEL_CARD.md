@@ -9,6 +9,11 @@ of orders land inside it.
 **For:** estimating total delivery time when an order is placed, in India.
 **Not for:** judging or paying riders, or promising times to customers before retraining (below).
 
+LightGBM trains it; the service runs the same trees without LightGBM, and training refuses to save
+them unless the answers match to within 0.000000001 minutes. The reasons given for an estimate follow
+each tree's path and credit every step to the input it asked about; they add up exactly, but other
+methods would share the credit a little differently.
+
 ## Data
 
 45,593 orders from India, 11 February to 6 April 2022. 41,953 are usable.

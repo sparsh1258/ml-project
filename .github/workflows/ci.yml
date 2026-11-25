@@ -30,10 +30,26 @@ jobs:
           uv run --frozen ruff format --check .
       - name: Types
         run: uv run --frozen pyright
-      - name: Train, and check against the quality gate
-        run: uv run --frozen python -m delivery_eta train
-      - name: Test
+      - name: Test, including the released model
         run: uv run --frozen pytest --cov=delivery_eta --cov-fail-under=90
+      - name: Retrain, and check against the quality gate
+        run: uv run --frozen python -m delivery_eta train --model /tmp/model
+
+  # The way Vercel runs it: its default Python, only what the service needs, from app.py.
+  vercel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install uv==0.13.10
+      - run: uv sync --frozen --no-dev --no-editable
+      - name: Start it and try it
+        run: |
+          .venv/bin/python -m uvicorn app:app --port 8090 &
+          python3 scripts/smoke_test.py http://localhost:8090 --wait 60
 
   image:
     runs-on: ubuntu-latest

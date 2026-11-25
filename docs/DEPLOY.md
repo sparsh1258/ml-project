@@ -1,8 +1,8 @@
 # Putting it online
 
-Everything is in one Docker image: the API, the page and the model. It needs no database and no disk,
-so any host that runs a container works. Building the image trains the model; if the model fails the
-quality gate, the build fails and nothing is released.
+The service is the API, the page and the released model in `model/`. It needs no database, no disk and
+no system libraries, so it runs on Vercel and on any host that runs a container. The model only gets
+into `model/` by passing the quality gate, and CI retrains it on every change to check it still does.
 
 | It needs | |
 |---|---|
@@ -12,6 +12,16 @@ quality gate, the build fails and nothing is released.
 | Settings | All optional, listed in [.env.example](../.env.example) |
 
 To handle more traffic, run more containers. Keep one process in each, so metrics stay correct.
+
+## Vercel
+
+Import the repository at <https://vercel.com/new>. Nothing needs changing in the settings: the
+framework is **FastAPI**, and `pyproject.toml` tells Vercel the app is in `app.py`. Every push to
+`main` is then deployed.
+
+- Under **Settings > Environment Variables**, set `ETA_METRICS` to `false`: Vercel starts and stops
+  copies of the service, so counts kept in memory mean little. Add `ETA_API_KEYS` to protect it.
+- Under **Settings > Functions**, choose the region nearest your users (Mumbai is `bom1`).
 
 ## Open or protected?
 
@@ -58,7 +68,8 @@ python scripts/smoke_test.py https://YOUR-ADDRESS --key YOUR-KEY
 
 ## Going back
 
-Redeploy the previous image. Each one carries its own model, so code and model go back together.
+Redeploy the previous image, or on Vercel choose **Instant Rollback**. The model is part of the
+release, so code and model go back together.
 `GET /api/v1/model` shows which model is running.
 
 ## Retraining on new orders
@@ -67,4 +78,4 @@ Redeploy the previous image. Each one carries its own model, so code and model g
 2. Run `python -m uv run python -m delivery_eta train --report reports/metrics.json`.
 3. Read the new numbers. If the gate refuses the model, find out why before changing the gate.
 4. Update the row counts in `tests/test_release.py` and the numbers in the model card.
-5. Release as usual.
+5. Commit `model/` and `reports/metrics.json` with the data, and release as usual.
