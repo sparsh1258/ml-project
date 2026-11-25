@@ -1,0 +1,10 @@
+# Only what the Dockerfile copies.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!src
+!configs
+!data
+data/raw/test.csv
+**/__pycache__

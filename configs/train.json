@@ -1,0 +1,28 @@
+{
+  "seed": 42,
+  "test_days": 10,
+  "cv_folds": 4,
+  "cv_days": 5,
+  "mask_share": 0.1,
+  "coverage": 0.8,
+  "rounds": 300,
+  "params": {
+    "learning_rate": 0.0247,
+    "num_leaves": 108,
+    "min_data_in_leaf": 39,
+    "feature_fraction": 0.88,
+    "bagging_fraction": 0.79,
+    "bagging_freq": 1,
+    "lambda_l2": 3.995,
+    "cat_smooth": 38.1,
+    "cat_l2": 0.8
+  },
+  "gate": {
+    "max_mae": 3.4,
+    "min_improvement_over_average": 0.5,
+    "max_worst_group_mae": 5.0,
+    "max_mae_rider_not_assigned": 5.6,
+    "min_coverage": 0.76,
+    "max_coverage": 0.86
+  }
+}

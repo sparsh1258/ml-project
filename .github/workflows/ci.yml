@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install uv==0.13.10
+      - name: Install exactly what is locked
+        run: uv sync --locked --all-extras
+      - name: Lint
+        run: |
+          uv run --frozen ruff check .
+          uv run --frozen ruff format --check .
+      - name: Types
+        run: uv run --frozen pyright
+      - name: Train, and check against the quality gate
+        run: uv run --frozen python -m delivery_eta train
+      - name: Test
+        run: uv run --frozen pytest --cov=delivery_eta --cov-fail-under=90
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build
+        run: docker build -t delivery-eta .
+      - name: Run it the way a host would
+        run: |
+          docker run -d --name eta --read-only --cap-drop ALL -p 8080:8080 \
+            -e PORT=8080 -e ETA_API_KEYS=ci-only-not-a-real-key delivery-eta
+          python3 scripts/smoke_test.py http://localhost:8080 --key ci-only-not-a-real-key --wait 60
+          test "$(docker exec eta id -u)" = 10001
+      - name: Logs
+        if: always()
+        run: docker logs eta
