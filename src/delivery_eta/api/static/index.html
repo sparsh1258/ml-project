@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delivery ETA</title>
+  <meta name="description" content="Estimates how long a food order takes to arrive.">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Delivery ETA</h1>
+    <p>Change the order and the estimate follows. Leave out what you don't know.</p>
+  </header>
+
+  <main>
+    <form id="order" autocomplete="off">
+      <fieldset>
+        <legend>Trip</legend>
+        <div class="field wide">
+          <label for="distance">Straight-line distance</label>
+          <div class="slider">
+            <input id="distance" name="distance_km" type="range" min="1.5" max="21" step="0.5" value="8">
+            <output id="distance-value" for="distance">8 km</output>
+          </div>
+        </div>
+        <div class="field">
+          <label for="time">Ordered at (Indian time)</label>
+          <input id="time" name="time" type="time" value="19:30" required>
+        </div>
+        <div class="field">
+          <label for="order_type">Order</label>
+          <select id="order_type" name="order_type">
+            <option value="">Not known</option>
+            <option value="meal" selected>Meal</option>
+            <option value="snack">Snack</option>
+            <option value="drinks">Drinks</option>
+            <option value="buffet">Buffet</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Conditions</legend>
+        <div class="field">
+          <label for="traffic">Traffic</label>
+          <select id="traffic" name="traffic">
+            <option value="">Not known</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="jam" selected>Jam</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="weather">Weather</label>
+          <select id="weather" name="weather">
+            <option value="">Not known</option>
+            <option value="sunny" selected>Sunny</option>
+            <option value="cloudy">Cloudy</option>
+            <option value="fog">Fog</option>
+            <option value="windy">Windy</option>
+            <option value="stormy">Stormy</option>
+            <option value="sandstorms">Sandstorms</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="city">Area</label>
+          <select id="city" name="city">
+            <option value="">Not known</option>
+            <option value="metropolitan" selected>Metropolitan</option>
+            <option value="urban">Urban</option>
+            <option value="semi_urban">Semi-urban</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="festival">Festival day</label>
+          <select id="festival" name="festival">
+            <option value="">Not known</option>
+            <option value="no" selected>No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Rider</legend>
+        <div class="field">
+          <label for="vehicle">Vehicle</label>
+          <select id="vehicle" name="vehicle">
+            <option value="">Not known</option>
+            <option value="motorcycle" selected>Motorcycle</option>
+            <option value="scooter">Scooter</option>
+            <option value="electric_scooter">Electric scooter</option>
+            <option value="bicycle">Bicycle</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="vehicle_condition">Vehicle condition (0 is slowest)</label>
+          <select id="vehicle_condition" name="vehicle_condition">
+            <option value="">Not known</option>
+            <option>0</option>
+            <option selected>1</option>
+            <option>2</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="other_deliveries">Other orders carried</label>
+          <select id="other_deliveries" name="other_deliveries">
+            <option value="">Not known</option>
+            <option selected>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="rider_rating">Rating (1 to 5)</label>
+          <input id="rider_rating" name="rider_rating" type="number" inputmode="decimal"
+            min="1" max="5" step="0.1" value="4.7" placeholder="Not known">
+        </div>
+        <div class="field">
+          <label for="rider_age">Age</label>
+          <input id="rider_age" name="rider_age" type="number" inputmode="numeric"
+            min="18" max="70" step="1" value="28" placeholder="Not known">
+        </div>
+        <div class="field end">
+          <button id="no-rider" type="button">No rider assigned yet</button>
+        </div>
+      </fieldset>
+
+      <fieldset id="key-box" hidden>
+        <legend>Access</legend>
+        <div class="field wide">
+          <label for="key">API key</label>
+          <input id="key" type="password" autocomplete="off" placeholder="Needed on this server">
+        </div>
+      </fieldset>
+    </form>
+
+    <section id="result" aria-labelledby="result-title">
+      <h2 id="result-title">Estimate</h2>
+      <p id="problem" role="alert" hidden></p>
+      <div id="answer">
+        <p id="minutes" aria-live="polite"><strong>–</strong> <span>min</span></p>
+        <p id="range-text">&nbsp;</p>
+        <div id="scale" aria-hidden="true">
+          <div id="scale-range"></div>
+          <div id="scale-mark"></div>
+        </div>
+        <div id="scale-labels" aria-hidden="true"><span>0</span><span>15</span><span>30</span><span>45</span><span>60 min</span></div>
+        <ul id="notes"></ul>
+        <h3>Compared with an average order</h3>
+        <ol id="factors"></ol>
+      </div>
+    </section>
+  </main>
+
+  <footer><p id="about">&nbsp;</p></footer>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

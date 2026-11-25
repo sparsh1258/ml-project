@@ -1,0 +1,13 @@
+model,mae,rmse,r2,seconds
+LightGBM,3.075,3.869,0.829,3.0
+"LightGBM, trained for missing inputs",3.084,3.884,0.828,3.6
+Histogram gradient boosting,3.138,3.955,0.821,2.7
+XGBoost,3.154,3.986,0.819,3.8
+Random forest,3.193,4.034,0.814,5.5
+Gradient boosting,3.221,4.058,0.812,21.3
+Decision tree,3.388,4.341,0.785,0.5
+"KNN (k=15, Manhattan)",3.952,5.067,0.707,1.5
+Ridge,4.796,6.036,0.584,0.3
+Linear regression,4.796,6.036,0.584,0.3
+Lasso,4.888,6.165,0.566,0.4
+Guess the average,7.603,9.389,-0.004,0.3
